@@ -41,6 +41,9 @@ let geoPointExpected2: RecordOf<TGeoPoint> = Point2({});
 const px = origin2.get('x');
 const px2: number = origin2.x;
 // $ExpectError
+const px3: number = origin2.get('x', 'not set value');
+const px4: number | string = origin2.get('x', 'not set value');
+// $ExpectError
 const pz = origin2.get('z');
 // $ExpectError
 const pz2 = origin2.z;
@@ -103,7 +106,9 @@ const originAlt2: TPointNew = MakePointNew();
 { const x: number = originAlt2.get('x') }
 { const x: number = originAlt2.x }
 
-// $ExpectError Use of new may only return a class instance, not a record
+// Use of new may only return a class instance, not a record
+// (supported but discouraged)
+// $ExpectError
 const mistakeOriginNew: PointNew = new MakePointNew();
 // An alternative type strategy is instance based
 const originNew: MakePointNew = new MakePointNew();

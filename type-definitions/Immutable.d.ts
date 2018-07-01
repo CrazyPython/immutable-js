@@ -80,7 +80,7 @@
  *
  *
  * Note: All examples are presented in the modern [ES2015][] version of
- * JavaScript. To run in older browsers, they need to be translated to ES3.
+ * JavaScript. Use tools like Babel to support older browsers.
  *
  * For example:
  *
@@ -556,9 +556,6 @@ declare module Immutable {
      * List([ 1, 2 ]).map(x => 10 * x)
      * // List [ 10, 20 ]
      * ```
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: number, iter: this) => M,
@@ -1050,7 +1047,7 @@ declare module Immutable {
      * Note: `mergeDeepWith` can be used in `withMutations`.
      */
     mergeDeepWith(
-      merger: (oldVal: V, newVal: V, key: K) => V,
+      merger: (oldVal: any, newVal: any, key: any) => any,
       ...collections: Array<Iterable<[K, V]> | {[key: string]: V}>
     ): this;
 
@@ -1325,9 +1322,6 @@ declare module Immutable {
      *
      *     Map({ a: 1, b: 2 }).map(x => 10 * x)
      *     // Map { a: 10, b: 20 }
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: V, key: K, iter: this) => M,
@@ -1428,6 +1422,27 @@ declare module Immutable {
      * The number of entries in this OrderedMap.
      */
     readonly size: number;
+
+    /**
+     * Returns a new OrderedMap also containing the new key, value pair. If an
+     * equivalent key already exists in this OrderedMap, it will be replaced
+     * while maintaining the existing order.
+     *
+     * <!-- runkit:activate -->
+     * ```js
+     * const { OrderedMap } = require('immutable')
+     * const originalMap = OrderedMap({a:1, b:1, c:1})
+     * const updatedMap = originalMap.set('b', 2)
+     *
+     * originalMap
+     * // OrderedMap {a: 1, b: 1, c: 1}
+     * updatedMap
+     * // OrderedMap {a: 1, b: 2, c: 1}
+     * ```
+     *
+     * Note: `set` can be used in `withMutations`.
+     */
+    set(key: K, value: V): this;
 
     /**
      * Returns a new OrderedMap resulting from merging the provided Collections
@@ -1699,9 +1714,6 @@ declare module Immutable {
      *
      *     Set([1,2]).map(x => 10 * x)
      *     // Set [10,20]
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: T, iter: this) => M,
@@ -1801,9 +1813,6 @@ declare module Immutable {
      *
      *     OrderedSet([ 1, 2 ]).map(x => 10 * x)
      *     // OrderedSet [10, 20]
-     *
-     * Note: `map()` always returns a new instance, even if it produced the same
-     * value at every step.
      */
     map<M>(
       mapper: (value: T, key: T, iter: this) => M,
@@ -2184,7 +2193,7 @@ declare module Immutable {
    * ```js
    * const { Record } = require('immutable')
    * const ABRecord = Record({ a: 1, b: 2 })
-   * const myRecord = new ABRecord({ b: 3 })
+   * const myRecord = ABRecord({ b: 3 })
    * ```
    *
    * Records always have a value for the keys they define. `remove`ing a key
@@ -2205,7 +2214,7 @@ declare module Immutable {
    * ignored for this record.
    *
    * ```js
-   * const myRecord = new ABRecord({ b: 3, x: 10 })
+   * const myRecord = ABRecord({ b: 3, x: 10 })
    * myRecord.get('x') // undefined
    * ```
    *
@@ -2220,9 +2229,19 @@ declare module Immutable {
    * myRecord.b = 5 // throws Error
    * ```
    *
-   * Record Classes can be extended as well, allowing for custom methods on your
+   * Record Types can be extended as well, allowing for custom methods on your
    * Record. This is not a common pattern in functional environments, but is in
    * many JS programs.
+   *
+   * However Record Types are more restricted than typical JavaScript classes.
+   * They do not use a class constructor, which also means they cannot use
+   * class properties (since those are technically part of a constructor).
+   *
+   * While Record Types can be syntactically created with the JavaScript `class`
+   * form, the resulting Record function is actually a factory function, not a
+   * class constructor. Even though Record Types are not classes, JavaScript
+   * currently requires the use of `new` when creating new Record instances if
+   * they are defined as a `class`.
    *
    * ```
    * class ABRecord extends Record({ a: 1, b: 2 }) {
@@ -2431,7 +2450,8 @@ declare module Immutable {
      * notSetValue will be returned if provided. Note that this scenario would
      * produce an error when using Flow or TypeScript.
      */
-    get<K extends keyof TProps>(key: K, notSetValue: any): TProps[K];
+    get<K extends keyof TProps>(key: K, notSetValue?: any): TProps[K];
+    get<T>(key: string, notSetValue: T): T;
 
     // Reading deep values
 
@@ -2491,6 +2511,9 @@ declare module Immutable {
 
     /**
      * Deeply converts this Record to equivalent native JavaScript Object.
+     *
+     * Note: This method may not be overridden. Objects with custom
+     * serialization to plain JS may override toJSON() instead.
      */
     toJS(): { [K in keyof TProps]: any };
 
@@ -4671,7 +4694,7 @@ declare module Immutable {
    * If a `reviver` is optionally provided, it will be called with every
    * collection as a Seq (beginning with the most nested collections
    * and proceeding to the top-level collection itself), along with the key
-   * refering to each collection and the parent JS object provided as `this`.
+   * referring to each collection and the parent JS object provided as `this`.
    * For the top level, object, the key will be `""`. This `reviver` is expected
    * to return a new Immutable Collection, allowing for custom conversions from
    * deep JS objects. Finally, a `path` is provided which is the sequence of
@@ -4686,7 +4709,7 @@ declare module Immutable {
    * ```js
    * const { fromJS, isKeyed } = require('immutable')
    * function (key, value) {
-   *   return isKeyed(value) ? value.Map() : value.toList()
+   *   return isKeyed(value) ? value.toMap() : value.toList()
    * }
    * ```
    *
@@ -5111,7 +5134,7 @@ declare module Immutable {
    * const { merge } = require('immutable')
    * const original = { x: 123, y: 456 }
    * merge(original, { y: 789, z: 'abc' }) // { x: 123, y: 789, z: 'abc' }
-   * console.log(original) // { x: { y: { z: 123 }}}
+   * console.log(original) // { x: 123, y: 456 }
    * ```
    */
   export function merge<C>(
@@ -5135,7 +5158,7 @@ declare module Immutable {
    *   original,
    *   { y: 789, z: 'abc' }
    * ) // { x: 123, y: 1245, z: 'abc' }
-   * console.log(original) // { x: { y: { z: 123 }}}
+   * console.log(original) // { x: 123, y: 456 }
    * ```
    */
   export function mergeWith<C>(
